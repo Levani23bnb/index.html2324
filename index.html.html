@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcFlow | Ultra Market</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Ethers & Axios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-deep: #030816;
+            --accent-glow: #3b82f6; 
+            --success-color: #10b981;
+            --glass-bg: rgba(15, 23, 42, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg-deep);
+            background-image: radial-gradient(circle at 50% -20%, #1e40af 0%, var(--bg-deep) 60%);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 20px 5%; background: rgba(3, 8, 22, 0.85); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border); position: sticky; top: 0; z-index: 100;
+        }
+        .brand-box { display: flex; align-items: center; gap: 12px; }
+        .brand-text { font-weight: 700; font-size: 1.5rem; color: white; letter-spacing: -0.5px; }
+
+        .btn { 
+            background: rgba(255, 255, 255, 0.05); color: white; 
+            border: 1px solid rgba(255,255,255,0.1); padding: 12px 24px; 
+            border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn:hover { background: var(--accent-glow); border-color: var(--accent-glow); transform: translateY(-2px); }
+        .btn-primary { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border: none; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); }
+
+        .container { max-width: 1280px; margin: 40px auto; padding: 20px; }
+
+        /* Mint Panel */
+        .mint-panel {
+            background: var(--glass-bg); backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); border-radius: 20px;
+            padding: 40px; max-width: 500px; margin: 0 auto 60px auto;
+            text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        .file-upload-wrapper {
+            border: 2px dashed rgba(255,255,255,0.2); border-radius: 16px;
+            height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            margin-bottom: 20px; position: relative; cursor: pointer; transition: 0.3s;
+        }
+        .file-upload-wrapper:hover { border-color: var(--accent-glow); background: rgba(59, 130, 246, 0.05); }
+        .file-upload-wrapper input { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+        input[type="number"] { 
+            width: 100%; padding: 14px; background: rgba(0,0,0,0.3); 
+            border: 1px solid rgba(255,255,255,0.1); color: white; margin-bottom: 20px; border-radius: 10px; font-family: inherit;
+        }
+
+        /* Grid System */
+        .section-header { margin: 50px 0 25px 0; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .section-title { font-size: 1.4rem; font-weight: 700; color: white; }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+            gap: 30px; 
+        }
+
+        .card { 
+            background: rgba(30, 41, 59, 0.4); border-radius: 18px; overflow: hidden; 
+            border: 1px solid rgba(255, 255, 255, 0.05); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative;
+            display: flex; flex-direction: column;
+        }
+        .card:hover { transform: translateY(-8px) scale(1.02); border-color: var(--accent-glow); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        
+        .card-img-wrapper { height: 260px; overflow: hidden; position: relative; background: #020617; }
+        .card img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; opacity: 0; } 
+        .card img.loaded { opacity: 1; }
+
+        /* Shimmer Loading Effect */
+        .shimmer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
+            background-size: 200% 100%; animation: shimmer 1.5s infinite; z-index: 1;
+        }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        .card-body { padding: 18px; flex-grow: 1; display: flex; flex-direction: column; }
+        .price-tag { font-size: 1.25rem; font-weight: 700; margin: 5px 0 15px 0; color: #fff; }
+        
+        .new-badge {
+            position: absolute; top: 12px; right: 12px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white; font-size: 0.75rem; font-weight: 800;
+            padding: 6px 12px; border-radius: 20px; z-index: 10;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            z-index: 1000; display: none; justify-content: center; align-items: center;
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+        .modal-box {
+            background: #0f172a; border: 1px solid var(--accent-glow);
+            width: 380px; padding: 40px; border-radius: 24px;
+            text-align: center; box-shadow: 0 0 50px rgba(59, 130, 246, 0.3);
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid var(--accent-glow); border-radius: 50%;
+            margin: 0 auto 20px auto; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .success-icon {
+            width: 60px; height: 60px; background: var(--success-color); color: white; 
+            border-radius: 50%; margin: 0 auto 20px auto; display: flex; 
+            align-items: center; justify-content: center; font-size: 1.8rem;
+        }
+        .modal-title { font-size: 1.4rem; margin-bottom: 8px; font-weight: 700; color: white; }
+        .modal-desc { color: #94a3b8; font-size: 0.95rem; margin-bottom: 25px; }
+        .modal-close-btn {
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            padding: 12px; border-radius: 12px; cursor: pointer; width: 100%; font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal -->
+    <div id="txModal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modalIconContainer"></div>
+            <div id="modalTitle" class="modal-title">Processing</div>
+            <div id="modalDesc" class="modal-desc">Please wait...</div>
+            <button id="modalCloseBtn" class="modal-close-btn" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="brand-box">
+            <i class="fas fa-cube fa-2x" style="color:white;"></i>
+            <span class="brand-text">ArcFlow</span>
+        </div>
+        <button id="connectBtn" class="btn" onclick="connectWallet()">
+            <i class="fas fa-wallet"></i> <span>Connect Wallet</span>
+        </button>
+    </nav>
+
+    <div class="container">
+        
+        <!-- Mint Panel -->
+        <div class="mint-panel">
+            <h2>Create Asset</h2>
+            <div class="file-upload-wrapper">
+                <i class="fas fa-cloud-upload-alt fa-2x" style="color:#64748b; margin-bottom:10px;"></i>
+                <div id="fileName" style="color:#94a3b8; font-size:0.9rem;">Select Image</div>
+                <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this)">
+            </div>
+            <input type="number" id="nftPrice" placeholder="Price (USDC)">
+            <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="uploadAndMint()">
+                <i class="fas fa-bolt"></i> MINT NOW
+            </button>
+        </div>
+
+        <!-- New Section -->
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-fire" style="color:#f59e0b;"></i> New Arrivals</h2>
+        </div>
+        <div id="newGrid" class="grid">
+            <div style="color:gray; opacity:0.5;">Waiting for wallet...</div>
+        </div>
+
+        <!-- Main Section -->
+        <div class="section-header">
+            <h2 class="section-title"><i class="fas fa-layer-group" style="color:var(--accent-glow);"></i> Market</h2>
+        </div>
+        <div id="mainGrid" class="grid"></div>
+
+    </div>
+
+<script>
+    // --- CONFIGURATION ---
+    const ARC_RPC = "https://rpc.testnet.arc.network"; 
+    const ARC_CHAIN_ID_HEX = "0x" + (5042002).toString(16);
+    const MARKETPLACE_ADDRESS = "0x405bCbd26D62ab805b1DA27A253713B3D6923318";
+    // NOTE: In production, move JWT to backend.
+    const PINATA_JWT = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI1NmNlNjAzOS1kYTE5LTQyMWEtOThmZS1lNWY1ZWU4MjBlYWIiLCJlbWFpbCI6ImxldmFuaS5jaG9saWthdXJpMjNAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6ImNlZjAwOTVkN2Q5ZTFlY2QzNjdjIiwic2NvcGVkS2V5U2VjcmV0IjoiODIxNGRlZDMwMjlhYzM3MzBlNmFlOTc3ZjMyOGZjZmM5ZWM2MTk5Njk5NmIyYTMxZTRlNzg1OGRmYjE4Y2U3NCIsImV4cCI6MTc5OTU4Nzg3OH0.KoCBNdDnOoxqSS6pY_zkOfE27aoGfVaOwBT0_xCtfPA";
+
+    const MARKET_ABI = ["function createToken(string tokenURI, uint256 price) public returns (uint256)","function createMarketSale(uint256 itemId) public","function fetchMarketItems() public view returns (tuple(uint256 itemId, address nftContract, uint256 tokenId, address seller, address owner, uint256 price, bool sold)[])","function tokenURI(uint256 tokenId) public view returns (string)","function payToken() public view returns (address)"];
+    const ERC20_ABI = ["function approve(address spender, uint256 amount) public returns (bool)","function allowance(address owner, address spender) public view returns (uint256)","function balanceOf(address account) public view returns (uint256)","function decimals() public view returns (uint8)"];
+
+    let provider, signer, marketContract;
+    let cachedTokenContract, cachedDecimals;
+
+    // --- GATEWAY RACING LOGIC (ULTRA FAST) ---
+    const GATEWAYS = [
+        "https://cloudflare-ipfs.com/ipfs/",
+        "https://ipfs.io/ipfs/",
+        "https://dweb.link/ipfs/",
+        "https://gateway.pinata.cloud/ipfs/"
+    ];
+
+    // Helper: Tries to fetch from multiple sources simultaneously, returns first success
+    async function raceFetch(cid) {
+        // Clean CID
+        let clean = cid.replace("ipfs://", "").replace("https://gateway.pinata.cloud/ipfs/", "");
+        
+        // Create an array of fetch promises
+        const promises = GATEWAYS.map(gw => 
+            axios.get(gw + clean, { timeout: 4000 }).then(res => res.data)
+        );
+
+        try {
+            // Promise.any returns the first fulfilled promise
+            return await Promise.any(promises);
+        } catch (e) {
+            console.warn("All gateways failed for meta:", clean);
+            return null;
+        }
+    }
+
+    // --- UI HELPERS ---
+    function openModal(title, desc, type='loading') {
+        const modal = document.getElementById('txModal');
+        const icon = document.getElementById('modalIconContainer');
+        const btn = document.getElementById('modalCloseBtn');
+        document.getElementById('modalTitle').innerText = title;
+        document.getElementById('modalDesc').innerText = desc;
+        modal.classList.add('active');
+        if(type==='loading') { icon.innerHTML='<div class="spinner"></div>'; btn.style.display='none'; }
+        else { icon.innerHTML=`<div class="success-icon" style="background:${type==='error'?'#ef4444':'#10b981'}"><i class="fas ${type==='error'?'fa-times':'fa-check'}"></i></div>`; btn.style.display='block'; }
+    }
+    function closeModal() { document.getElementById('txModal').classList.remove('active'); }
+    function handleFile(input) { if(input.files[0]) document.getElementById('fileName').innerHTML = `<span style="color:#4ade80">✓ ${input.files[0].name}</span>`; }
+
+    // --- MAIN FUNCTIONS ---
+    async function connectWallet() {
+        if (!window.ethereum) return alert("Install MetaMask");
+        try {
+            // Force Network Switch
+            await window.ethereum.request({ method: "wallet_addEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX, chainName: "Arc Testnet", rpcUrls: [ARC_RPC], nativeCurrency: { name: "ARC", symbol: "ARC", decimals: 18 } }] }).catch(()=>{});
+            await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID_HEX }] }).catch(()=>{});
+            
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = provider.getSigner();
+            marketContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKET_ABI, signer);
+
+            // Cache Payment Token Info
+            const payAddr = await marketContract.payToken();
+            cachedTokenContract = new ethers.Contract(payAddr, ERC20_ABI, signer);
+            cachedDecimals = await cachedTokenContract.decimals();
+            
+            const addr = await signer.getAddress();
+            const btn = document.getElementById("connectBtn");
+            btn.innerHTML = `<i class="fas fa-user-circle"></i> ${addr.substring(0,6)}...`;
+            btn.style.borderColor = "#4ade80";
+
+            loadMarketItems();
+        } catch (e) { alert("Wallet Error: " + e.message); }
+    }
+
+    async function uploadAndMint() {
+        if (!marketContract) return alert("Connect Wallet First!");
+        const file = document.getElementById("fileInput").files[0];
+        const price = document.getElementById("nftPrice").value;
+        if(!file || !price) return alert("Missing file or price!");
+
+        openModal("Uploading", "Pinning to Decentralized Storage...", "loading");
+        try {
+            const formData = new FormData(); formData.append('file', file);
+            
+            // 1. Upload Image
+            const resFile = await axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {headers: {'Authorization': `Bearer ${PINATA_JWT}`}});
+            const imgHash = resFile.data.IpfsHash;
+
+            // 2. Upload Metadata
+            openModal("Minting", "Please confirm in MetaMask...", "loading");
+            const meta = JSON.stringify({ name: "ArcAsset", image: `ipfs://${imgHash}`, created: Date.now() });
+            const resJson = await axios.post("https://api.pinata.cloud/pinning/pinJSONToIPFS", meta, {headers: {'Authorization': `Bearer ${PINATA_JWT}`, 'Content-Type': 'application/json'}});
+            
+            const tokenUri = `ipfs://${resJson.data.IpfsHash}`;
+            const priceWei = ethers.utils.parseUnits(price, cachedDecimals);
+            
+            // 3. Mint
+            const tx = await marketContract.createToken(tokenUri, priceWei, { gasLimit: 2500000 });
+            openModal("Mining", "Wait for blockchain confirmation...", "loading");
+            await tx.wait();
+
+            openModal("Success!", "NFT Listed on Marketplace!", "success");
+            setTimeout(() => { closeModal(); loadMarketItems(); }, 2000);
+        } catch(e) { openModal("Error", e.message || "Transaction failed", "error"); }
+    }
+
+    async function loadMarketItems() {
+        if(!marketContract) return;
+        try {
+            const data = await marketContract.fetchMarketItems();
+            const ZERO = "0x0000000000000000000000000000000000000000";
+            
+            // Filter: Not sold AND Owner is Marketplace
+            const unsold = data.filter(i => (!i.sold && i.owner === ZERO));
+            const sorted = [...unsold].reverse(); // Newest first
+
+            renderGrid(sorted.slice(0, 5), "newGrid", true);
+            renderGrid(sorted.slice(5), "mainGrid", false);
+        } catch(e) { console.error("Fetch Error:", e); }
+    }
+
+    async function renderGrid(items, elId, isNew) {
+        const grid = document.getElementById(elId);
+        let html = "";
+        
+        if(items.length === 0 && isNew) {
+            grid.innerHTML = "<div style='opacity:0.5; grid-column:1/-1;'>No new items found.</div>";
+            return;
+        }
+
+        // 1. Render Skeletons (Immediate UI feedback)
+        items.forEach(i => {
+            let price = ethers.utils.formatUnits(i.price, cachedDecimals);
+            html += `
+            <div class="card" id="item-${i.itemId}">
+                ${isNew ? '<div class="new-badge">NEW</div>' : ''}
+                <div class="card-img-wrapper">
+                    <div class="shimmer" id="shimmer-${i.itemId}"></div>
+                    <img src="" class="nft-img-${i.itemId}" alt="NFT" loading="lazy">
+                </div>
+                <div class="card-body">
+                    <div style="font-size:0.8rem; color:#94a3b8;">Price</div>
+                    <div class="price-tag">${price} USDC</div>
+                    <button class="btn" style="width:100%" onclick="buyItem(${i.itemId})">BUY NOW</button>
+                </div>
+            </div>`;
+        });
+        grid.innerHTML = html;
+
+        // 2. Hydrate with Data (Parallel & Fast)
+        items.forEach(async (i) => {
+            try {
+                // Fetch TokenURI from Blockchain
+                let uri = await marketContract.tokenURI(i.tokenId);
+                
+                // RACE: Fetch Metadata from fastest Gateway
+                let meta = await raceFetch(uri);
+                
+                if(meta && meta.image) {
+                    let cleanImg = meta.image.replace("ipfs://", "").replace("https://gateway.pinata.cloud/ipfs/", "");
+                    const imgEl = document.querySelector(`.nft-img-${i.itemId}`);
+                    const shimmer = document.getElementById(`shimmer-${i.itemId}`);
+
+                    // Use Cloudflare as primary for image source (fastest cache)
+                    let finalSrc = `https://cloudflare-ipfs.com/ipfs/${cleanImg}`;
+                    
+                    imgEl.src = finalSrc;
+                    imgEl.onload = () => {
+                        imgEl.classList.add('loaded'); // Fade in
+                        if(shimmer) shimmer.style.display = 'none';
+                    };
+
+                    // Smart Fallback if Cloudflare fails
+                    imgEl.onerror = function() {
+                        if(this.src.includes('cloudflare')) this.src = `https://ipfs.io/ipfs/${cleanImg}`;
+                        else if(this.src.includes('ipfs.io')) this.src = `https://dweb.link/ipfs/${cleanImg}`;
+                        else if(this.src.includes('dweb')) this.src = `https://gateway.pinata.cloud/ipfs/${cleanImg}`;
+                        else {
+                            if(shimmer) shimmer.style.display = 'none'; // Stop shimmer on fail
+                        }
+                    };
+                }
+            } catch(e) { console.error("Item Error:", i.itemId); }
+        });
+    }
+
+    async function buyItem(itemId) {
+        try {
+            openModal("Checking", "Verifying balance...", "loading");
+            const items = await marketContract.fetchMarketItems();
+            const item = items.find(i => i.itemId.toString() == itemId.toString());
+
+            const bal = await cachedTokenContract.balanceOf(await signer.getAddress());
+            if(bal.lt(item.price)) { openModal("Error", "Insufficient Balance", "error"); return; }
+
+            openModal("Approval", "Sign approval in Wallet...", "loading");
+            const appTx = await cachedTokenContract.approve(MARKETPLACE_ADDRESS, item.price);
+            await appTx.wait();
+
+            openModal("Buying", "Confirm purchase...", "loading");
+            const buyTx = await marketContract.createMarketSale(itemId, { gasLimit: 2000000 });
+            await buyTx.wait();
+
+            openModal("Success", "NFT Purchased!", "success");
+            
+            // Remove from UI with animation
+            const card = document.getElementById(`item-${itemId}`);
+            if(card) {
+                card.style.transform = "scale(0.8)";
+                card.style.opacity = "0";
+                setTimeout(() => card.remove(), 500);
+            }
+        } catch(e){ openModal("Failed", e.message || "Transaction Error", "error"); }
+    }
+</script>
+</body>
+</html>
